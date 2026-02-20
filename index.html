@@ -3,192 +3,203 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>旅費開支紀錄器</title>
+    <title>進階旅費管理系統</title>
     <style>
-        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f4f7f6; padding: 20px; }
-        h1 { color: #333; }
+        :root { --main-blue: #add8e6; --dark-blue: #007bff; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f0f4f8; padding: 20px; line-height: 1.6; }
         
-        /* 方形圓角框 */
         .trip-container {
-            border: 2px solid #add8e6;
+            border: 2px solid var(--main-blue);
             border-radius: 15px;
             background-color: #ffffff;
             padding: 20px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
 
-        .trip-header { border-bottom: 2px solid #eee; margin-bottom: 15px; padding-bottom: 10px; }
+        .trip-header { 
+            display: flex; justify-content: space-between; align-items: center;
+            cursor: pointer; border-bottom: 1px solid #eee; padding-bottom: 10px;
+        }
+
+        .budget-control { margin: 10px 0; background: #f9f9f9; padding: 10px; border-radius: 8px; }
+        .budget-control input { padding: 5px; width: 120px; }
+        .locked-msg { color: #d9534f; font-size: 0.8em; margin-left: 10px; display: none; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background-color: #e3f2fd; }
+
+        .btn { padding: 8px 15px; cursor: pointer; border-radius: 5px; border: none; transition: 0.2s; }
+        .btn-main { background-color: var(--dark-blue); color: white; margin-bottom: 20px; }
+        .btn-add { background-color: #28a745; color: white; margin-top: 10px; }
+        .btn-end { background-color: #6c757d; color: white; float: right; margin-top: 15px; }
         
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-        th { background-color: #f0f8ff; }
-
-        /* 按鈕樣式 */
-        .btn { padding: 8px 16px; cursor: pointer; border-radius: 5px; border: none; transition: 0.3s; margin: 5px 0; }
-        .btn-main { background-color: #007bff; color: white; font-size: 16px; }
-        .btn-add { background-color: #28a745; color: white; }
-        .btn-end { background-color: #dc3545; color: white; float: right; margin-top: 10px; }
-        .btn:hover { opacity: 0.8; }
-
-        /* 彈窗/表單樣式 */
-        .modal { 
-            display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; 
-            background-color: rgba(0,0,0,0.4); 
-        }
-        .modal-content { 
-            background-color: white; margin: 10% auto; padding: 20px; border-radius: 10px; width: 400px; 
-        }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; }
-        .form-group input, .form-group select { width: 100%; padding: 8px; box-sizing: border-box; }
+        .collapsed { display: none; } /* 用於收合 */
         
-        .summary-area { margin-top: 15px; font-weight: bold; color: #d9534f; text-align: right; }
+        .modal { display: none; position: fixed; z-index: 10; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+        .modal-content { background: white; margin: 10% auto; padding: 25px; border-radius: 10px; width: 450px; }
     </style>
 </head>
 <body>
 
-    <h1>我的旅程紀錄</h1>
-    <button class="btn btn-main" onclick="openTripModal()">＋ 新增旅程</button>
+    <h1>🌍 旅程開支管理系統</h1>
+    <button class="btn btn-main" onclick="openModal('tripModal')">＋ 新增旅程</button>
 
     <div id="trip-list"></div>
 
     <div id="tripModal" class="modal">
         <div class="modal-content">
             <h3>登記新旅程</h3>
-            <div class="form-group"><label>旅遊目的地</label><input type="text" id="dest"></div>
-            <div class="form-group"><label>出發時間</label><input type="date" id="start"></div>
-            <div class="form-group"><label>歸來時間</label><input type="date" id="end"></div>
-            <div class="form-group"><label>預計總旅費 (TWD)</label><input type="number" id="budget"></div>
-            <button class="btn btn-add" onclick="createNewTrip()">生成旅程表</button>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div><label>目的地</label><input type="text" id="dest" style="width:100%"></div>
+                <div><label>預計旅費(TWD)</label><input type="number" id="budget" style="width:100%"></div>
+                <div><label>出發日期</label><input type="date" id="start"></div>
+                <div><label>歸來日期</label><input type="date" id="end"></div>
+            </div>
+            <p style="font-size: 12px; color: #666;">* 機票、飯店、旅平險等請於細項中登記或計入預算</p>
+            <button class="btn btn-add" onclick="saveTrip()">建立旅程</button>
             <button class="btn" onclick="closeModal('tripModal')">取消</button>
         </div>
     </div>
 
     <div id="itemModal" class="modal">
         <div class="modal-content">
-            <h3>增加支出細項</h3>
-            <div class="form-group">
-                <label>標籤</label>
-                <select id="itemTag">
-                    <option value="交通">交通</option>
-                    <option value="三餐">三餐</option>
-                    <option value="飯店">飯店</option>
-                    <option value="服裝">服裝</option>
-                    <option value="便利商店">便利商店</option>
-                    <option value="其他">其他</option>
-                </select>
-            </div>
-            <div class="form-group"><label>細項名稱</label><input type="text" id="itemName"></div>
-            <div class="form-group"><label>金額 (外幣)</label><input type="number" id="foreignAmt" oninput="calcTWD()"></div>
-            <div class="form-group"><label>當天匯率</label><input type="number" step="0.0001" id="rate" oninput="calcTWD()"></div>
-            <div class="form-group"><label>折合台幣 (自動計算)</label><input type="number" id="twdAmt" readonly></div>
-            <button class="btn btn-add" id="submitItemBtn">OK</button>
+            <h3>新增支出</h3>
+            <label>分類</label>
+            <select id="itemTag" style="width:100%; margin-bottom:10px;">
+                <option>交通</option><option>三餐</option><option>飯店</option>
+                <option>服裝</option><option>便利商店</option><option>其他</option>
+            </select>
+            <label>明細內容</label><input type="text" id="itemName" style="width:100%; margin-bottom:10px;">
+            <label>外幣金額</label><input type="number" id="fAmt" style="width:100%" oninput="updateTwd()">
+            <label>當前匯率</label><input type="number" id="rate" step="0.01" style="width:100%" oninput="updateTwd()">
+            <p>折合台幣：<span id="twdDisplay">0</span></p>
+            <button class="btn btn-add" onclick="confirmItem()">確認加入</button>
             <button class="btn" onclick="closeModal('itemModal')">取消</button>
         </div>
     </div>
 
     <script>
-        let currentTripId = null;
+        let trips = JSON.parse(localStorage.getItem('trips')) || [];
+        let activeTripId = null;
 
-        function openTripModal() { document.getElementById('tripModal').style.display = 'block'; }
+        // 初始化渲染
+        window.onload = renderTrips;
+
+        function openModal(id) { document.getElementById(id).style.display = 'block'; }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-        function calcTWD() {
-            const amt = document.getElementById('foreignAmt').value;
-            const rate = document.getElementById('rate').value;
-            if(amt && rate) {
-                document.getElementById('twdAmt').value = (amt * rate).toFixed(2);
-            }
+        function updateTwd() {
+            const f = document.getElementById('fAmt').value;
+            const r = document.getElementById('rate').value;
+            document.getElementById('twdDisplay').innerText = Math.round(f * r);
         }
 
-        function createNewTrip() {
-            const dest = document.getElementById('dest').value;
-            const start = document.getElementById('start').value;
-            const end = document.getElementById('end').value;
-            const budget = document.getElementById('budget').value;
-
-            if(!dest || !start || !end) return alert("請填寫完整資訊");
-
-            const tripId = Date.now();
-            const tripHtml = `
-                <div class="trip-container" id="trip-${tripId}">
-                    <div class="trip-header">
-                        <h2>${dest} (${start} ~ ${end})</h2>
-                        <p>預計預算：NT$ ${budget}</p>
-                    </div>
-                    <button class="btn btn-add" onclick="openItemModal(${tripId})">＋ 增加細項</button>
-                    <table id="table-${tripId}">
-                        <thead>
-                            <tr>
-                                <th>標籤</th>
-                                <th>明細條目</th>
-                                <th>金額(外幣)</th>
-                                <th>匯率</th>
-                                <th>台幣價格</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                    <div class="summary-area" id="summary-${tripId}"></div>
-                    <button class="btn btn-end" onclick="endTrip(${tripId})">結束旅程</button>
-                    <div style="clear:both;"></div>
-                </div>
-            `;
-            document.getElementById('trip-list').insertAdjacentHTML('afterbegin', tripHtml);
+        // 保存旅程到 LocalStorage
+        function saveTrip() {
+            const trip = {
+                id: Date.now(),
+                dest: document.getElementById('dest').value,
+                budget: parseFloat(document.getElementById('budget').value),
+                start: document.getElementById('start').value,
+                end: document.getElementById('end').value,
+                items: [],
+                isEnded: false
+            };
+            trips.push(trip);
+            localStorage.setItem('trips', JSON.stringify(trips));
+            renderTrips();
             closeModal('tripModal');
         }
 
-        function openItemModal(tripId) {
-            currentTripId = tripId;
-            document.getElementById('itemModal').style.display = 'block';
-            document.getElementById('submitItemBtn').onclick = function() {
-                addItemToTable(tripId);
-            };
+        function renderTrips() {
+            const list = document.getElementById('trip-list');
+            list.innerHTML = '';
+            const now = new Date();
+
+            trips.forEach(trip => {
+                const startDate = new Date(trip.start + "T00:00:00");
+                const isLocked = now >= startDate; // 只要到了出發當天 00:00，就鎖定前一天的 23:59:59 限制
+
+                const container = document.createElement('div');
+                container.className = 'trip-container';
+                container.innerHTML = `
+                    <div class="trip-header" onclick="toggleCollapse(${trip.id})">
+                        <div>
+                            <strong>📍 ${trip.dest}</strong> 
+                            <small>(${trip.start} ~ ${trip.end})</small>
+                        </div>
+                        <span>${trip.isEnded ? '✅ 已結束 (點擊展開/收合)' : '✈️ 進行中'}</span>
+                    </div>
+                    
+                    <div id="content-${trip.id}" class="${trip.isEnded ? 'collapsed' : ''}">
+                        <div class="budget-control">
+                            預計旅費：<input type="number" value="${trip.budget}" 
+                                ${isLocked ? 'disabled' : ''} 
+                                onchange="updateBudget(${trip.id}, this.value)"> TWD
+                            ${isLocked ? '<span class="locked-msg" style="display:inline">🔒 預算已鎖定</span>' : ''}
+                        </div>
+                        
+                        <table id="table-${trip.id}">
+                            <thead><tr><th>標籤</th><th>內容</th><th>外幣</th><th>匯率</th><th>台幣</th></tr></thead>
+                            <tbody>
+                                ${trip.items.map(i => `<tr><td>${i.tag}</td><td>${i.name}</td><td>${i.fAmt}</td><td>${i.rate}</td><td>${i.tAmt}</td></tr>`).join('')}
+                            </tbody>
+                        </table>
+
+                        ${!trip.isEnded ? `
+                            <button class="btn btn-add" onclick="event.stopPropagation(); openItemModal(${trip.id})">＋ 增加細項</button>
+                            <button class="btn btn-end" onclick="event.stopPropagation(); endTrip(${trip.id})">結束旅程</button>
+                        ` : `<div style="margin-top:10px; font-weight:bold; color:red; text-align:right;">總結算金額：NT$ ${calculateTotal(trip.id)}</div>`}
+                    </div>
+                `;
+                list.appendChild(container);
+            });
         }
 
-        function addItemToTable(tripId) {
-            const tag = document.getElementById('itemTag').value;
-            const name = document.getElementById('itemName').value;
-            const fAmt = document.getElementById('foreignAmt').value;
-            const rate = document.getElementById('rate').value;
-            const tAmt = document.getElementById('twdAmt').value;
+        function updateBudget(id, val) {
+            const trip = trips.find(t => t.id === id);
+            trip.budget = parseFloat(val);
+            localStorage.setItem('trips', JSON.stringify(trips));
+        }
 
-            if(!name || !fAmt || !rate) return alert("請填寫支出明細");
+        function toggleCollapse(id) {
+            const el = document.getElementById(`content-${id}`);
+            el.classList.toggle('collapsed');
+        }
 
-            const tbody = document.querySelector(`#table-${tripId} tbody`);
-            const row = `<tr>
-                <td>${tag}</td>
-                <td>${name}</td>
-                <td>${fAmt}</td>
-                <td>${rate}</td>
-                <td class="twd-val">${tAmt}</td>
-            </tr>`;
-            tbody.insertAdjacentHTML('beforeend', row);
-            
-            // 清空並關閉
-            document.getElementById('itemName').value = '';
-            document.getElementById('foreignAmt').value = '';
-            document.getElementById('rate').value = '';
-            document.getElementById('twdAmt').value = '';
+        function openItemModal(id) {
+            activeTripId = id;
+            openModal('itemModal');
+        }
+
+        function confirmItem() {
+            const trip = trips.find(t => t.id === activeTripId);
+            const item = {
+                tag: document.getElementById('itemTag').value,
+                name: document.getElementById('itemName').value,
+                fAmt: document.getElementById('fAmt').value,
+                rate: document.getElementById('rate').value,
+                tAmt: Math.round(document.getElementById('fAmt').value * document.getElementById('rate').value)
+            };
+            trip.items.push(item);
+            localStorage.setItem('trips', JSON.stringify(trips));
+            renderTrips();
             closeModal('itemModal');
         }
 
-        function endTrip(tripId) {
-            if(confirm("確定旅程已結束嗎？結算後將統計總花費。")) {
-                let total = 0;
-                const rows = document.querySelectorAll(`#table-${tripId} .twd-val`);
-                rows.forEach(td => total += parseFloat(td.innerText));
-                
-                // 四捨五入至個位數 (先到十分位再四捨五入本質上就是標準四捨五入)
-                const finalTotal = Math.round(total);
-                
-                document.getElementById(`summary-${tripId}`).innerHTML = `總花費結算：NT$ ${finalTotal}`;
-                
-                // 隱藏按鈕避免重複操作
-                document.querySelector(`#trip-${tripId} .btn-end`).style.display = 'none';
-                document.querySelector(`#trip-${tripId} .btn-add`).style.display = 'none';
-                alert(`旅程結束！本次總花費為 NT$ ${finalTotal}`);
+        function calculateTotal(id) {
+            const trip = trips.find(t => t.id === id);
+            return trip.items.reduce((sum, item) => sum + item.tAmt, 0);
+        }
+
+        function endTrip(id) {
+            if(confirm("確定結束旅程並結算嗎？結束後將自動收合。")) {
+                const trip = trips.find(t => t.id === id);
+                trip.isEnded = true;
+                localStorage.setItem('trips', JSON.stringify(trips));
+                renderTrips();
             }
         }
     </script>
