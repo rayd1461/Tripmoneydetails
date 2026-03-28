@@ -3,18 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>進階旅費管理系統</title>
+    <title>旅費管理系統 - 刪除功能版</title>
     <style>
-        :root { --main-blue: #add8e6; --dark-blue: #007bff; }
+        :root { --main-blue: #add8e6; --dark-blue: #007bff; --danger-red: #dc3545; }
         body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f0f4f8; padding: 20px; line-height: 1.6; }
         
         .trip-container {
             border: 2px solid var(--main-blue);
-            border-radius: 15px;
-            background-color: #ffffff;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            border-radius: 15px; background-color: #ffffff;
+            padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
 
         .trip-header { 
@@ -34,11 +31,14 @@
         .btn-main { background-color: var(--dark-blue); color: white; margin-bottom: 20px; }
         .btn-add { background-color: #28a745; color: white; margin-top: 10px; }
         .btn-end { background-color: #6c757d; color: white; float: right; margin-top: 15px; }
+        .btn-del { background-color: var(--danger-red); color: white; padding: 4px 8px; font-size: 12px; }
         
-        .collapsed { display: none; } /* 用於收合 */
+        .collapsed { display: none; }
         
         .modal { display: none; position: fixed; z-index: 10; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
         .modal-content { background: white; margin: 10% auto; padding: 25px; border-radius: 10px; width: 450px; }
+        
+        .summary-box { margin-top:10px; font-weight:bold; color:var(--danger-red); text-align:right; border-top: 1px dashed #ccc; padding-top: 10px; }
     </style>
 </head>
 <body>
@@ -57,7 +57,7 @@
                 <div><label>出發日期</label><input type="date" id="start"></div>
                 <div><label>歸來日期</label><input type="date" id="end"></div>
             </div>
-            <p style="font-size: 12px; color: #666;">* 機票、飯店、旅平險等請於細項中登記或計入預算</p>
+            <br>
             <button class="btn btn-add" onclick="saveTrip()">建立旅程</button>
             <button class="btn" onclick="closeModal('tripModal')">取消</button>
         </div>
@@ -84,7 +84,6 @@
         let trips = JSON.parse(localStorage.getItem('trips')) || [];
         let activeTripId = null;
 
-        // 初始化渲染
         window.onload = renderTrips;
 
         function openModal(id) { document.getElementById(id).style.display = 'block'; }
@@ -96,12 +95,11 @@
             document.getElementById('twdDisplay').innerText = Math.round(f * r);
         }
 
-        // 保存旅程到 LocalStorage
         function saveTrip() {
             const trip = {
                 id: Date.now(),
-                dest: document.getElementById('dest').value,
-                budget: parseFloat(document.getElementById('budget').value),
+                dest: document.getElementById('dest').value || "未命名旅程",
+                budget: parseFloat(document.getElementById('budget').value) || 0,
                 start: document.getElementById('start').value,
                 end: document.getElementById('end').value,
                 items: [],
@@ -120,7 +118,7 @@
 
             trips.forEach(trip => {
                 const startDate = new Date(trip.start + "T00:00:00");
-                const isLocked = now >= startDate; // 只要到了出發當天 00:00，就鎖定前一天的 23:59:59 限制
+                const isLocked = now >= startDate;
 
                 const container = document.createElement('div');
                 container.className = 'trip-container';
@@ -130,7 +128,7 @@
                             <strong>📍 ${trip.dest}</strong> 
                             <small>(${trip.start} ~ ${trip.end})</small>
                         </div>
-                        <span>${trip.isEnded ? '✅ 已結束 (點擊展開/收合)' : '✈️ 進行中'}</span>
+                        <span>${trip.isEnded ? '✅ 已結束 (點擊展開)' : '✈️ 進行中'}</span>
                     </div>
                     
                     <div id="content-${trip.id}" class="${trip.isEnded ? 'collapsed' : ''}">
@@ -141,17 +139,30 @@
                             ${isLocked ? '<span class="locked-msg" style="display:inline">🔒 預算已鎖定</span>' : ''}
                         </div>
                         
-                        <table id="table-${trip.id}">
-                            <thead><tr><th>標籤</th><th>內容</th><th>外幣</th><th>匯率</th><th>台幣</th></tr></thead>
+                        <table>
+                            <thead><tr><th>標籤</th><th>內容</th><th>外幣</th><th>匯率</th><th>台幣</th><th>操作</th></tr></thead>
                             <tbody>
-                                ${trip.items.map(i => `<tr><td>${i.tag}</td><td>${i.name}</td><td>${i.fAmt}</td><td>${i.rate}</td><td>${i.tAmt}</td></tr>`).join('')}
+                                ${trip.items.map((item, index) => `
+                                    <tr>
+                                        <td>${item.tag}</td>
+                                        <td>${item.name}</td>
+                                        <td>${item.fAmt}</td>
+                                        <td>${item.rate}</td>
+                                        <td>${item.tAmt}</td>
+                                        <td>
+                                            ${!trip.isEnded ? `<button class="btn btn-del" onclick="deleteItem(${trip.id}, ${index})">刪除</button>` : '-'}
+                                        </td>
+                                    </tr>
+                                `).join('')}
                             </tbody>
                         </table>
 
                         ${!trip.isEnded ? `
                             <button class="btn btn-add" onclick="event.stopPropagation(); openItemModal(${trip.id})">＋ 增加細項</button>
                             <button class="btn btn-end" onclick="event.stopPropagation(); endTrip(${trip.id})">結束旅程</button>
-                        ` : `<div style="margin-top:10px; font-weight:bold; color:red; text-align:right;">總結算金額：NT$ ${calculateTotal(trip.id)}</div>`}
+                        ` : `
+                            <div class="summary-box">總結算金額：NT$ ${calculateTotal(trip.id)}</div>
+                        `}
                     </div>
                 `;
                 list.appendChild(container);
@@ -164,24 +175,41 @@
             localStorage.setItem('trips', JSON.stringify(trips));
         }
 
+        function deleteItem(tripId, itemIndex) {
+            if(confirm("確定要刪除這筆支出嗎？")) {
+                const trip = trips.find(t => t.id === tripId);
+                trip.items.splice(itemIndex, 1); // 移除該索引的項目
+                localStorage.setItem('trips', JSON.stringify(trips));
+                renderTrips();
+            }
+        }
+
         function toggleCollapse(id) {
-            const el = document.getElementById(`content-${id}`);
-            el.classList.toggle('collapsed');
+            document.getElementById(`content-${id}`).classList.toggle('collapsed');
         }
 
         function openItemModal(id) {
             activeTripId = id;
+            document.getElementById('fAmt').value = '';
+            document.getElementById('rate').value = '';
+            document.getElementById('itemName').value = '';
+            document.getElementById('twdDisplay').innerText = '0';
             openModal('itemModal');
         }
 
         function confirmItem() {
             const trip = trips.find(t => t.id === activeTripId);
+            const f = document.getElementById('fAmt').value;
+            const r = document.getElementById('rate').value;
+            
+            if(!f || !r) return alert("請填寫完整金額與匯率");
+
             const item = {
                 tag: document.getElementById('itemTag').value,
-                name: document.getElementById('itemName').value,
-                fAmt: document.getElementById('fAmt').value,
-                rate: document.getElementById('rate').value,
-                tAmt: Math.round(document.getElementById('fAmt').value * document.getElementById('rate').value)
+                name: document.getElementById('itemName').value || "未命名支出",
+                fAmt: f,
+                rate: r,
+                tAmt: Math.round(f * r)
             };
             trip.items.push(item);
             localStorage.setItem('trips', JSON.stringify(trips));
@@ -195,7 +223,7 @@
         }
 
         function endTrip(id) {
-            if(confirm("確定結束旅程並結算嗎？結束後將自動收合。")) {
+            if(confirm("確定結束旅程嗎？結算後支出明細將無法再刪除或修改。")) {
                 const trip = trips.find(t => t.id === id);
                 trip.isEnded = true;
                 localStorage.setItem('trips', JSON.stringify(trips));
